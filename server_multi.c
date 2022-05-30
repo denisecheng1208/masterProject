@@ -80,6 +80,18 @@ void addToTail(struct serverList *list, struct serverNode *newNode) {
 	list->size += 1;
 }
 
+void printList(struct serverList *list) {
+	struct serverNode *p = list->head;
+
+	while (p != NULL)
+	{
+		printf("%s -> ", p->vmName);
+		p = p->next;
+	}
+	printf("NULL\n");
+	
+}
+
 int main(int argc, char *argv[]){
 	int sock;
 	struct sockaddr_in serverAddr;
@@ -104,6 +116,14 @@ int main(int argc, char *argv[]){
 	struct serverNode *assignedServer = deleteFromHead(inactiveList);
 	addToTail(activeList, assignedServer);*/
 
+	//test printList
+	/*
+	printf("Inactive Server List: ");
+	printList(inactiveList);
+	printf("Active Server List: ");
+	printList(activeList);*/
+
+
 	if(argc!=2){
 		printf("Usage: %s <TCP PORT>\n", argv[0]);
 	}
@@ -125,6 +145,11 @@ int main(int argc, char *argv[]){
 	listen(sock, 1);
 
 	for( ; ; ){
+		printf("Inactive Server List: ");
+		printList(inactiveList);
+		printf("Active Server List: ");
+		printList(activeList);
+
 		int newsockfd = 0;
 		cliAddrLen = sizeof(clientAddr);
 		if((newsockfd = accept(sock, (struct sockaddr *) &clientAddr, &cliAddrLen)) < 0){//create a new socket
