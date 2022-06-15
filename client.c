@@ -14,16 +14,20 @@ int main(int argc, char *argv[]) {
 	unsigned short servPort;
 	unsigned int fromSize; 
 	char *servIP; 
+	char *string; 
+	int stringLen; 
 	char buffer[MAX+1]; 
 	int respStringLen; 
 
-	if (argc != 3) {
+	if (argc != 4) {
 		printf("Usage: %s <Server IP> <server Port>\n", argv[0]);
 		exit(1);
 	}
 	
 	servIP = argv[1];
 	servPort = atoi(argv[2]);
+	string = argv[3];
+	stringLen = strlen(string);
 
 	if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0)
 		printf("socket() failed.\n"); 
@@ -38,16 +42,24 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
+	if(send(sock, string, stringLen, 0) != stringLen){
+		printf("send() failed.\n");
+		exit(1);
+	}
+	printf("Finished sending request.\n");
+
 	if ((respStringLen = recv(sock, buffer, MAX, 0)) < 0) {
 		 printf("recv() failed.\n");
 		 exit(1);
     }
 
 	printf("Finished receiving.\n");
-	//if (respStringLen ==)
 	printf("buffer: %s\n",buffer);
     close(sock);
 
-	sleep(50);
-	system("./runclient.sh");	
+	if (strcmp(string, "open")==0 && strcmp(buffer, "OK")==0) {
+		printf("wait 50s to open flightgear\n");
+		sleep(50);
+		system("./runclient.sh");	
+	}
 }
