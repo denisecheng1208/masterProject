@@ -12,6 +12,7 @@ struct serverNode
 {
 	char *vmName;
 	char *vmIP;
+	char *clientIP;
 	struct serverNode *next;
 };
 
@@ -32,6 +33,7 @@ void initServerList(struct serverList *list) {
     head->vmName = serverVMs[0];
     head->vmIP = vmIPs[0];
     head->next = NULL;
+	head->clientIP = "";
 
     struct serverNode *p = head;
 	struct serverNode *q;
@@ -39,6 +41,7 @@ void initServerList(struct serverList *list) {
         q = (struct serverNode *)calloc(1, sizeof(*q));
         q->vmName = serverVMs[i];
         q->vmIP = vmIPs[i];
+		q->clientIP = "";
         q->next = NULL;
 
         p->next = q;
@@ -64,6 +67,39 @@ struct serverNode *deleteFromHead(struct serverList *list) {
 
 	list->size -= 1;
 	return outNode;
+}
+
+struct serverNode *deleteFromList(struct serverList *list, char *clientIP) {
+	struct serverNode *q = NULL;
+	struct serverNode *p = list->head;
+
+	while (p != NULL)
+	{
+		if (strcmp(p->clientIP, clientIP) == 0) { //node needed to delete
+			// head
+			if (p == list->head) {
+				list->head = p->next;
+				p->next = NULL;
+			}
+			// tail
+			else if (p == list->tail) {
+				list->tail = q;
+				q->next = NULL;
+			}
+			// middle
+			else {
+				q->next = p->next;
+				p->next = NULL;
+			}
+			
+			list->size -= 1;
+			break;
+		}
+		q = p;
+		p = p->next;
+	}
+
+	return p;
 }
 
 void addToTail(struct serverList *list, struct serverNode *newNode) {
@@ -116,6 +152,16 @@ int main(int argc, char *argv[]){
 	struct serverNode *assignedServer = deleteFromHead(inactiveList);
 	addToTail(activeList, assignedServer);*/
 
+	/*
+	struct serverNode *closedServer = deleteFromList(inactiveList, "server1");
+	addToTail(inactiveList, closedServer);
+
+	closedServer = deleteFromList(inactiveList, "server5");
+	addToTail(inactiveList, closedServer);
+
+	closedServer = deleteFromList(inactiveList, "server3");
+	addToTail(inactiveList, closedServer); */
+
 	//test printList
 	/*
 	printf("Inactive Server List: ");
@@ -157,10 +203,18 @@ int main(int argc, char *argv[]){
 			exit(1);
 		}
 
+		if ((recvMsgSize = recv(newsockfd, recvBuffer, MAX, 0)) < 0) {// receive request("open"/"close <clientIP>")
+			printf("recv() failed.\n");
+			exit(1);
+        }
+		recvBuffer[recvMsgSize] = '\0';
+
 		printf("**************************************************************\n");
      	printf("Accept client %s on TCP port %d.\n",inet_ntoa(clientAddr.sin_addr), clientAddr.sin_port);
+		printf("This client request for: %s.\n", recvBuffer);
 
-		if (inactiveList->size > 0) {
+		if (strcmp(recvBuffer, "open") == 0) {
+			if (inactiveList->size > 0) {
 			char *reply = "OK";
 			int replyLen = strlen(reply);
 			printf("Send Reply...\n");
@@ -172,6 +226,7 @@ int main(int argc, char *argv[]){
 			char cmd[50];
 			// assign a server, add it to active list
 			struct serverNode *assignedServer = deleteFromHead(inactiveList);
+			assignedServer->clientIP = inet_ntoa(clientAddr.sin_addr);
 			addToTail(activeList, assignedServer);
 
 			sprintf(cmd, "./runserver.sh %s %s %s", assignedServer->vmName, assignedServer->vmIP, inet_ntoa(clientAddr.sin_addr));
@@ -179,7 +234,7 @@ int main(int argc, char *argv[]){
 
 			system(cmd);
 		}
-		else {
+			else {
 			char *reply = "Fail";
 			int replyLen = strlen(reply);
 			printf("Send Reply...\n");
@@ -188,7 +243,25 @@ int main(int argc, char *argv[]){
 				exit(1);
 			}
 		}
+		}
+		else { // "close"
+	
+			//char vmName[MAX] = "";
+			//strcpy(vmName, recvBuffer + 6);
 
+			//printf("Close server %s\n", vmName);
+
+			// ********* unTested **********
+			struct serverNode *closedServer = deleteFromList(activeList, inet_ntoa(clientAddr.sin_addr));
+			closedServer->clientIP = "";
+
+			char cmd[MAX];
+			sprintf(cmd, "VBoxManage controlvm %s acpipowerbutton", closedServer->vmName);
+			printf("cmd: %s.\n", cmd);
+			system(cmd);
+
+			addToTail(inactiveList, closedServer);
+		}
         printf("End communication ...\n");
 		close(newsockfd);
     }
