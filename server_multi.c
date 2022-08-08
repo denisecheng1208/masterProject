@@ -12,6 +12,7 @@ struct serverNode
 {
 	char *vmName;
 	char *vmIP;
+	char *vmTelnetPort;
 	char *clientIP;
 	struct serverNode *next;
 };
@@ -27,11 +28,13 @@ struct serverList
 void initServerList(struct serverList *list) {
 	char *serverVMs[] = {"server1", "server2", "server3", "server4", "server5"};
 	char *vmIPs[] = {"192.168.56.103", "192.168.56.104", "192.168.56.105", "192.168.56.106", "192.168.56.107"};
+	char *vmTelnetPorts[] = {"5006", "5007", "5008", "5009", "5010"};
     int n = 5;
 
     struct serverNode *head = (struct serverNode *)calloc(1, sizeof(*head));
     head->vmName = serverVMs[0];
     head->vmIP = vmIPs[0];
+	head->vmTelnetPort = vmTelnetPorts[0];
     head->next = NULL;
 	head->clientIP = "";
 
@@ -41,6 +44,7 @@ void initServerList(struct serverList *list) {
         q = (struct serverNode *)calloc(1, sizeof(*q));
         q->vmName = serverVMs[i];
         q->vmIP = vmIPs[i];
+		q->vmTelnetPort = vmTelnetPorts[i];
 		q->clientIP = "";
         q->next = NULL;
 
@@ -215,15 +219,8 @@ int main(int argc, char *argv[]){
 
 		if (strcmp(recvBuffer, "open") == 0) {
 			if (inactiveList->size > 0) {
-			char *reply = "OK";
-			int replyLen = strlen(reply);
-			printf("Send Reply...\n");
-			if(send(newsockfd, reply, replyLen, 0) != replyLen){
-				printf("send() failed.\n");
-				exit(1);
-			}
-
 			char cmd[50];
+
 			// assign a server, add it to active list
 			struct serverNode *assignedServer = deleteFromHead(inactiveList);
 			assignedServer->clientIP = inet_ntoa(clientAddr.sin_addr);
@@ -232,8 +229,16 @@ int main(int argc, char *argv[]){
 			sprintf(cmd, "./runserver.sh %s %s %s", assignedServer->vmName, assignedServer->vmIP, inet_ntoa(clientAddr.sin_addr));
 			printf("cmd: %s.\n", cmd);
 
+			char *reply = assignedServer->vmTelnetPort;
+			int replyLen = strlen(reply);
+			printf("Send Reply...\n");
+			if(send(newsockfd, reply, replyLen, 0) != replyLen){
+				printf("send() failed.\n");
+				exit(1);
+			}
+
 			system(cmd);
-		}
+			}
 			else {
 			char *reply = "Fail";
 			int replyLen = strlen(reply);
@@ -245,13 +250,6 @@ int main(int argc, char *argv[]){
 		}
 		}
 		else { // "close"
-	
-			//char vmName[MAX] = "";
-			//strcpy(vmName, recvBuffer + 6);
-
-			//printf("Close server %s\n", vmName);
-
-			// ********* unTested **********
 			struct serverNode *closedServer = deleteFromList(activeList, inet_ntoa(clientAddr.sin_addr));
 			closedServer->clientIP = "";
 
